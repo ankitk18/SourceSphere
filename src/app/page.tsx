@@ -8,6 +8,7 @@ import {
   findTopMatches,
   generateEmbeddings,
   generateQueryEmbedding,
+  keywordSearch,
 } from '@/utils/embeddings';
 import CodeForceGraph, { GraphNode } from '@/components/ForceGraph3D';
 
@@ -80,10 +81,14 @@ export default function Home() {
     setIsEmbedding(true);
     setEmbedProgress({ current: 0, total: files.length, path: '' });
     try {
-      const generated = await generateEmbeddings(files, (current, total, path) => {
-        setEmbedProgress({ current, total, path });
+      const generated = await generateEmbeddings(files, (current, total, path, attempt) => {
+        const label = attempt && attempt > 0 ? `${path} (retry ${attempt})` : path;
+        setEmbedProgress({ current, total, path: label });
       });
       setEmbeddings(generated);
+    } catch (err) {
+      console.error('Embedding generation failed:', err);
+      alert('Embedding generation failed. The browser may be under load or the model download was interrupted. Try again with fewer files or reload the page.');
     } finally {
       setIsEmbedding(false);
       setEmbedProgress(null);
@@ -129,13 +134,25 @@ export default function Home() {
     setSearchResults(null);
     setHighlightedIndex(null);
     try {
-      const queryEmbedding = await generateQueryEmbedding(query.trim());
+      const trimmedQuery = query.trim();
+      const queryEmbedding = await generateQueryEmbedding(trimmedQuery);
       const matches = findTopMatches(queryEmbedding, embeddings, 5);
-      const results = matches.map((m) => ({
-        path: m.path,
-        score: m.score,
-        index: m.index,
-      }));
+
+      // If the embedding model returns no confident matches, fall back to
+      // a simple keyword search so the user still sees relevant files.
+      const results =
+        matches.length > 0
+          ? matches.map((m) => ({
+              path: m.path,
+              score: m.score,
+              index: m.index,
+            }))
+          : keywordSearch(trimmedQuery, files, 5).map((m) => ({
+              path: m.path,
+              score: m.score,
+              index: m.index,
+            }));
+
       setSearchResults(results);
       if (results.length > 0) {
         setHighlightedIndex(results[0].index);
@@ -268,8 +285,8 @@ export default function Home() {
           {searchResults !== null && searchResults.length === 0 && (
             <div className="mb-6 rounded-xl border border-rose-900/50 bg-rose-950/20 p-4">
               <p className="text-sm text-rose-300">
-                No confident matches found. Try rephrasing your query or
-                uploading more files.
+                No matches found. Try rephrasing your query or uploading more
+                files.
               </p>
             </div>
           )}
