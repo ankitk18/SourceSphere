@@ -1,16 +1,13 @@
-/**
- * Represents a single file extracted from a local project folder.
- */
-export interface ProjectFile {
-  /** Relative path within the selected folder (e.g. src/components/Button.tsx). */
-  path: string;
-  /** Raw text content of the file. */
-  content: string;
-}
+// Re-export shared file-parsing constants and types for browser-specific code.
+import type { ProjectFile } from '@/shared/fileParser';
+export type { ProjectFile, ParseOptions } from '@/shared/fileParser';
+export {
+  DEFAULT_CODE_EXTENSIONS,
+  DEFAULT_IGNORED_EXTENSIONS,
+  DEFAULT_IGNORED_DIRS,
+  getExtension,
+} from '@/shared/fileParser';
 
-/**
- * Default set of readable code file extensions.
- */
 const DEFAULT_CODE_EXTENSIONS = new Set([
   // JavaScript / TypeScript ecosystem
   '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
@@ -31,9 +28,6 @@ const DEFAULT_CODE_EXTENSIONS = new Set([
   '.sql', '.md', '.txt', '.log',
 ]);
 
-/**
- * Binary-ish extensions we explicitly skip to avoid reading non-text files.
- */
 const DEFAULT_IGNORED_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.svgz',
   '.mp3', '.mp4', '.wav', '.ogg', '.webm', '.mov', '.avi',
@@ -42,9 +36,6 @@ const DEFAULT_IGNORED_EXTENSIONS = new Set([
   '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
 ]);
 
-/**
- * Directories that should be skipped by default (dependency caches, build output, etc.).
- */
 const DEFAULT_IGNORED_DIRS = new Set([
   'node_modules',
   '.git',
@@ -60,14 +51,10 @@ const DEFAULT_IGNORED_DIRS = new Set([
   'coverage',
 ]);
 
-export interface ParseOptions {
-  /** File extensions to include (lowercase, with leading dot). */
+interface ParseOptions {
   includeExtensions?: Set<string>;
-  /** File extensions to exclude. */
   excludeExtensions?: Set<string>;
-  /** Directory names to skip entirely. */
   ignoreDirs?: Set<string>;
-  /** Maximum file size in bytes (default 2 MB). */
   maxFileSize?: number;
 }
 
@@ -101,7 +88,7 @@ export async function parseProjectEntries(
     }
 
     if (entry.isFile) {
-      const ext = getExtension(entry.name);
+      const ext = _getExtension(entry.name);
       if (!includeExtensions.has(ext) || excludeExtensions.has(ext)) return;
 
       const file = await getFileFromEntry(entry as FileSystemFileEntry);
@@ -193,7 +180,7 @@ export async function parseFileList(
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i];
-    const ext = getExtension(file.name);
+    const ext = _getExtension(file.name);
     if (!includeExtensions.has(ext) || excludeExtensions.has(ext)) continue;
     if (file.size === 0 || file.size > maxFileSize) continue;
 
@@ -293,8 +280,7 @@ function readAllEntries(reader: FileSystemDirectoryReader): Promise<FileSystemEn
 function getFileFromEntry(entry: FileSystemFileEntry): Promise<File | null> {
   return new Promise((resolve) => entry.file((file) => resolve(file)));
 }
-
-function getExtension(fileName: string): string {
+function _getExtension(fileName: string): string {
   const dotIndex = fileName.lastIndexOf('.');
   return dotIndex === -1 ? '' : fileName.slice(dotIndex).toLowerCase();
 }

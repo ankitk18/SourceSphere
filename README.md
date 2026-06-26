@@ -1,62 +1,76 @@
 # SourceSphere
 
-SourceSphere is a Next.js application that lets you drag and drop an entire local project folder into the browser, reads every code file recursively, and then lets you explore the codebase through:
+A lightweight, privacy-first tool to explore any codebase with AI-powered semantic search and a 3D visualization in the browser.
 
-- **Natural-language search** — find files by asking plain questions like “Where is the database connection handled?”
-- **3D semantic graph** — visualize files as nodes positioned by their embedding similarity using PCA.
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Tailwind](https://img.shields.io/badge/Tailwind-3-38bdf8)
 
-Everything runs in the browser; no server-side code, no API keys, and no files are uploaded anywhere.
+## Why SourceSphere?
 
-## Features
+- **Drop a folder, find answers** — no manual grep required.
+- **Privacy-first** — code stays on your machine; no upload server.
+- **Works everywhere** — browser UI + cross-platform CLI.
+- **Pluggable AI** — local embeddings by default, or bring your own OpenAI-compatible API.
 
-- Folder dropzone using the HTML5 `webkitdirectory` attribute
-- Recursive reading of text files (`*.js`, `*.ts`, `*.jsx`, `*.tsx`, `*.py`, `*.java`, `*.cpp`, and many more)
-- In-browser embeddings via `@xenova/transformers` and `all-MiniLM-L6-v2`
-- Top-K semantic search with similarity scores
-- PCA-based 3D layout rendered with `three.js`
-- Click any search result to jump to its full source card
-- Clean, modern dark UI built with Tailwind CSS
+## Quick Start
 
-## Getting Started
+### Web UI
 
 ```bash
-# Install dependencies
 npm install
-
-# Start the development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and upload a project folder.
+Open [http://localhost:3000](http://localhost:3000), drop a project folder, and start searching.
 
-## How to Use
+### CLI
 
-1. Click the dropzone or drag a project folder onto it.
-2. Click **Generate Embeddings** to vectorize every file (this downloads the model once).
-3. Click **Reduce to 3D** to compute the spatial layout.
-4. Type a question in the search box, e.g. *“Where is workout data stored?”*
-5. Click any matched file to scroll to its source or highlight it in the graph.
+```bash
+# Interactive mode — answer the prompts, then ask as many questions as you want
+npx tsx src/cli/index.ts
+
+# One-shot mode for scripts
+npx tsx src/cli/index.ts ./my-project -q "where is auth handled?"
+
+# Skip embedding next time: load previously saved embeddings and keep asking
+npx tsx src/cli/index.ts --load sourcesphere-embeddings.json
+```
+
+When you run the CLI without a query, it will prompt: *"What would you like to ask about your code?"* — type a question to search, or type **exit** to quit. You can ask as many follow-up questions as you want without re-embedding. Embeddings are auto-saved to `sourcesphere-embeddings.json` by default, so you can resume later with `--load`.
+
+## Features
+
+- Drag & drop folder upload with `webkitdirectory`
+- Recursive parsing of code files (`.js`, `.ts`, `.py`, `.java`, `.cpp`, and more)
+- Natural-language semantic search with similarity scores
+- PCA-based 3D code graph (web UI)
+- Swappable embedding providers:
+  - **Xenova** (local, free, runs in browser & Node)
+  - **OpenAI-compatible** APIs
 
 ## Tech Stack
 
-- [Next.js 14](https://nextjs.org/)
-- [React 18](https://react.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Three.js](https://threejs.org/)
-- [Transformers.js](https://huggingface.co/docs/transformers.js/)
+Next.js · React · TypeScript · Tailwind CSS · Three.js · Transformers.js · Commander · Inquirer
 
-## Scripts
+## CLI Options
 
-| Script         | Description                  |
-| -------------- | ---------------------------- |
-| `npm run dev`  | Run the development server     |
-| `npm run build`| Build for production           |
-| `npm run start`| Start the production server    |
-| `npm run lint` | Run ESLint                     |
+```
+npx tsx src/cli/index.ts [folder] [options]
+  -i, --interactive      Run interactive setup prompts
+  -q, --query <text>     Search query
+  -o, --output <file>    Save embeddings JSON (default: sourcesphere-embeddings.json)
+  -l, --load <file>      Load embeddings JSON and skip parsing/embedding
+  --provider <xenova|openai>
+  --api-key, --base-url, --model, --env-file
+```
 
-## Notes
+## Environment Variables
 
-- The first embedding run downloads the ONNX model to the browser. It may take a moment depending on your connection.
-- Very large folders (tens of thousands of files) may take a while to process; the parser filters out binary and common non-code files.
-
+```bash
+SOURCESPHERE_PROVIDER=openai
+SOURCESPHERE_API_KEY=sk-...
+SOURCESPHERE_BASE_URL=https://api.openai.com/v1
+SOURCESPHERE_MODEL=text-embedding-3-small
+SOURCESPHERE_QUANTIZED=true
+```
