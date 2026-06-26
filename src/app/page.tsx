@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import FileDropzone from '@/components/FileDropzone';
 import { ProjectFile } from '@/utils/fileParser';
 import {
@@ -9,6 +9,9 @@ import {
   generateEmbeddings,
   generateQueryEmbedding,
   keywordSearch,
+  setEmbeddingProvider,
+  createXenovaProvider,
+  createOpenAICompatibleProvider,
 } from '@/utils/embeddings';
 import CodeForceGraph, { GraphNode } from '@/components/ForceGraph3D';
 
@@ -60,8 +63,71 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<Array<{ path: string; score: number; index: number }> | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
+  // Provider settings state.
+  const [providerType, setProviderType] = useState<'xenova' | 'openai'>('xenova');
+  const [apiKey, setApiKey] = useState('');
+  const [baseURL, setBaseURL] = useState('');
+  const [model, setModel] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
+
   // Refs for each file card so search results can scroll to them.
   const fileCardRefs = useRef<Map<string, HTMLElement | null>>(new Map());
+
+  // Load provider settings from localStorage on mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('sourcesphere:provider');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as {
+          providerType: 'xenova' | 'openai';
+          apiKey?: string;
+          baseURL?: string;
+          model?: string;
+        };
+        setProviderType(parsed.providerType ?? 'xenova');
+        setApiKey(parsed.apiKey ?? '');
+        setBaseURL(parsed.baseURL ?? '');
+        setModel(parsed.model ?? '');
+      } catch {
+        // Ignore corrupted settings.
+      }
+    }
+  }, []);
+
+  // Save provider settings whenever they change.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      'sourcesphere:provider',
+      JSON.stringify({ providerType, apiKey, baseURL, model })
+    );
+  }, [providerType, apiKey, baseURL, model]);
+
+  // Apply the selected provider globally.
+  useEffect(() => {
+    setProviderError(null);
+    try {
+      if (providerType === 'openai') {
+        if (!apiKey) {
+          setProviderError('OpenAI-compatible provider requires an API key.');
+          return;
+        }
+        setEmbeddingProvider(
+          createOpenAICompatibleProvider({
+            apiKey,
+            baseURL: baseURL || undefined,
+            model: model || undefined,
+          })
+        );
+      } else {
+        setEmbeddingProvider(createXenovaProvider());
+      }
+    } catch (err) {
+      setProviderError(err instanceof Error ? err.message : String(err));
+    }
+  }, [providerType, apiKey, baseURL, model]);
 
   const handleDrop = async (projectFiles: ProjectFile[]) => {
     setIsLoading(true);
@@ -88,7 +154,11 @@ export default function Home() {
       setEmbeddings(generated);
     } catch (err) {
       console.error('Embedding generation failed:', err);
-      alert('Embedding generation failed. The browser may be under load or the model download was interrupted. Try again with fewer files or reload the page.');
+      const message =
+        providerType === 'openai'
+          ? 'Embedding generation failed. Check your API key and base URL, or verify the selected model supports embeddings.'
+          : 'Embedding generation failed. The browser may be under load or the model download was interrupted. Try again with fewer files or reload the page.';
+      alert(message);
     } finally {
       setIsEmbedding(false);
       setEmbedProgress(null);
@@ -182,6 +252,9 @@ export default function Home() {
         <p className="text-lg text-slate-400">
           Drag-and-drop or browse an entire folder. We’ll recursively read every code file inside.
         </p>
+        <p className="mt-2 text-sm text-slate-500">
+          Default embeddings run locally with Xenova. Use Provider Settings to switch to your own OpenAI-compatible API.
+        </p>
       </div>
 
       <FileDropzone onDrop={handleDrop} isLoading={isLoading} />
@@ -230,8 +303,88 @@ export default function Home() {
               >
                 Clear
               </button>
+              <button
+                onClick={() => setShowSettings((s) => !s)}
+                className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+              >
+                {showSettings ? 'Hide Settings' : 'Provider Settings'}
+              </button>
             </div>
           </div>
+
+          {showSettings && (
+            <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-white">Embedding Provider</h3>
+              {providerError && (
+                <div className="mb-4 rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 text-sm text-rose-300">
+                  {providerError}
+                </div>
+              )}
+              <div className="mb-4 flex gap-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="xenova"
+                    checked={providerType === 'xenova'}
+                    onChange={() => setProviderType('xenova')}
+                    className="accent-indigo-500"
+                  />
+                  Xenova (local, default)
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="openai"
+                    checked={providerType === 'openai'}
+                    onChange={() => setProviderType('openai')}
+                    className="accent-indigo-500"
+                  />
+                  OpenAI-compatible API
+                </label>
+              </div>
+
+              {providerType === 'openai' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-400">API Key</label>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-600 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-400">Base URL (optional)</label>
+                    <input
+                      type="text"
+                      value={baseURL}
+                      onChange={(e) => setBaseURL(e.target.value)}
+                      placeholder="https://api.openai.com/v1"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-600 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-400">Model (optional)</label>
+                    <input
+                      type="text"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      placeholder="text-embedding-3-small"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-600 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-3 text-xs text-slate-500">
+                Settings are saved to your browser's localStorage and never leave the page.
+              </p>
+            </div>
+          )}
 
           {isEmbedding && embedProgress && (
             <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-4">

@@ -27,6 +27,7 @@ Open [http://localhost:3000](http://localhost:3000), drop a project folder, and 
 ### CLI
 
 ### One-line install (CLI only)
+#### Option 1: One-line install (recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ankitk18/SourceSphere/main/scripts/install.sh | bash
@@ -50,6 +51,73 @@ sourcesphere ./my-project -q "where is auth handled?"
 
 # Skip embedding next time: load previously saved embeddings and keep asking
 sourcesphere --load sourcesphere-embeddings.json
+```
+
+When you run the CLI without a query, it will prompt: *"What would you like to ask about your code?"* — type a question to search, or type **exit** to quit. You can ask as many follow-up questions as you want without re-embedding. Embeddings are auto-saved to `sourcesphere-embeddings.json` by default, so you can resume later with `--load`.
+
+## Features
+
+- Drag & drop folder upload with `webkitdirectory`
+- Recursive parsing of code files (`.js`, `.ts`, `.py`, `.java`, `.cpp`, and more)
+- Natural-language semantic search with similarity scores
+- PCA-based 3D code graph (web UI)
+- Swappable embedding providers:
+  - **Xenova** (local, free, runs in browser & Node)
+  - **OpenAI-compatible** APIs
+
+## Tech Stack
+
+Next.js · React · TypeScript · Tailwind CSS · Three.js · Transformers.js · Commander · Inquirer
+
+## CLI Options
+
+```
+sourcesphere [folder] [options]
+  -i, --interactive      Run interactive setup prompts
+  -q, --query <text>     Search query
+  -o, --output <file>    Save embeddings JSON (default: sourcesphere-embeddings.json)
+  -l, --load <file>      Load embeddings JSON and skip parsing/embedding
+  --provider <xenova|openai>
+  --api-key, --base-url, --model, --env-file
+```
+
+## Environment Variables
+
+
+After installing, open a new terminal or run:
+
+```bash
+export PATH="$HOME/.sourcesphere/bin:$PATH"
+sourcesphere --help
+```
+
+#### Option 2: Clone and run locally
+
+```bash
+git clone https://github.com/ankitk18/SourceSphere.git
+cd SourceSphere
+npm install
+npx tsx src/cli/index.ts --help
+```
+
+Then use it from anywhere (after install):
+
+```bash
+# Interactive mode — answer the prompts, then ask as many questions as you want
+sourcesphere
+
+# One-shot mode for scripts
+sourcesphere ./my-project -q "where is auth handled?"
+
+# Skip embedding next time: load previously saved embeddings and keep asking
+sourcesphere --load sourcesphere-embeddings.json
+```
+
+Or from the cloned repo:
+
+```bash
+npx tsx src/cli/index.ts ./my-project -q "where is auth handled?"
+npx tsx src/cli/index.ts --load sourcesphere-embeddings.json
 ```
 
 When you run the CLI without a query, it will prompt: *"What would you like to ask about your code?"* — type a question to search, or type **exit** to quit. You can ask as many follow-up questions as you want without re-embedding. Embeddings are auto-saved to `sourcesphere-embeddings.json` by default, so you can resume later with `--load`.
