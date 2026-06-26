@@ -26,15 +26,30 @@ Open [http://localhost:3000](http://localhost:3000), drop a project folder, and 
 
 ### CLI
 
+### One-line install (CLI only)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ankitk18/SourceSphere/main/scripts/install.sh | bash
+```
+
+After installing, open a new terminal or run:
+
+```bash
+export PATH="$HOME/.sourcesphere/bin:$PATH"
+sourcesphere --help
+```
+
+Then use it from anywhere:
+
 ```bash
 # Interactive mode — answer the prompts, then ask as many questions as you want
-npx tsx src/cli/index.ts
+sourcesphere
 
 # One-shot mode for scripts
-npx tsx src/cli/index.ts ./my-project -q "where is auth handled?"
+sourcesphere ./my-project -q "where is auth handled?"
 
 # Skip embedding next time: load previously saved embeddings and keep asking
-npx tsx src/cli/index.ts --load sourcesphere-embeddings.json
+sourcesphere --load sourcesphere-embeddings.json
 ```
 
 When you run the CLI without a query, it will prompt: *"What would you like to ask about your code?"* — type a question to search, or type **exit** to quit. You can ask as many follow-up questions as you want without re-embedding. Embeddings are auto-saved to `sourcesphere-embeddings.json` by default, so you can resume later with `--load`.
@@ -56,7 +71,7 @@ Next.js · React · TypeScript · Tailwind CSS · Three.js · Transformers.js ·
 ## CLI Options
 
 ```
-npx tsx src/cli/index.ts [folder] [options]
+sourcesphere [folder] [options]
   -i, --interactive      Run interactive setup prompts
   -q, --query <text>     Search query
   -o, --output <file>    Save embeddings JSON (default: sourcesphere-embeddings.json)
